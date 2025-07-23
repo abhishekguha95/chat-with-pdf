@@ -1,83 +1,110 @@
 # Docker Compose configuration for Chat with PDF application
 # This sets up a multi-container environment with PostgreSQL, Redis, backend API, and worker service
+# Version 3.8 provides support for external networks, secrets, and configs
 version: "3.8"
 
 services:
     # PostgreSQL database service for storing application data
+    # Acts as the primary data store for user sessions, chat history, and PDF metadata
     postgres:
         image: postgres:15
-        restart: always
+        # restart: always # Automatically restart container if it stops unexpectedly
         environment:
             # Database credentials and configuration
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
-            POSTGRES_DB: chatpdf
+            # These environment variables initialize the PostgreSQL instance
+            POSTGRES_USER: postgres # Database superuser account
+            POSTGRES_PASSWORD: postgres # Password for superuser (change in production!)
+            POSTGRES_DB: chatpdf # Default database created on startup
         volumes:
-            # Persist database data on host machine
+            # Persist database data on host machine to survive container restarts
+            # Maps named volume 'pgdata' to PostgreSQL's data directory
             - pgdata:/var/lib/postgresql/data
         ports:
             # Expose PostgreSQL on port 5432 for external connections
+            # Format: "host_port:container_port" - allows direct DB access from host
             - "5432:5432"
 
     # Redis service for caching and session management
+    # Used for storing temporary data, user sessions, and background job queues
     redis:
-        image: redis:7
-        restart: always
+        image: redis:7 # Latest stable Redis version for performance and security
+        # restart: always # Ensure Redis is always available for caching operations
         ports:
             # Expose Redis on port 6379 for external connections
+            # Allows backend services and external tools to connect to Redis
             - "6379:6379"
 
     # Main backend API service
-    backend-app:
-        build: ./backend/app
+    # Handles HTTP requests, user authentication, PDF processing coordination
+    backend:
+        build:
+            # Build custom Docker image from local Dockerfile
+            context: ./backend-nodejs # Build context directory
+            dockerfile: Dockerfile # Dockerfile location within context
         ports:
+            # Expose backend API on port 3000
+            # This is the main entry point for frontend applications
             - "3000:3000"
         volumes:
-            - ./backend/app:/app
-            - ./backend/app/.git:/app/.git # Ensure .git is available for version control
+            # Use named volume for persistent development with version control
+            # Allows git operations and code persistence within container
+            - backend_code:/backend-nodejs
+        working_dir: /backend-nodejs
+        command: >
+            sh -c "apk update && 
+                   apk add --no-cache git && 
+                   tail -f /dev/null"
         environment:
+            # Database connection string for PostgreSQL
+            # Uses service name 'postgres' for internal Docker network resolution
             DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
+            # Git configuration for commits within container
+            GIT_AUTHOR_NAME: "Abhishek Guha"
+            GIT_AUTHOR_EMAIL: "qohor2525@gmail.com"
+            GIT_COMMITTER_NAME: "Abhishek Guha"
+            GIT_COMMITTER_EMAIL: "qohor2525@gmail.com"
         env_file:
-            - ../.env
+            # Load additional environment variables from .env file
+            # Contains API keys, secrets, and configuration not in version control
+            - .env
         depends_on:
-            - postgres
-            - redis
-
-    # Background worker service for processing tasks
-    backend-worker:
-        build: ./backend/worker
-        volumes:
-            - ./backend/worker:/worker
-            - ./backend/worker/.git:/worker/.git # Ensure .git is available for version control
-        environment:
-            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
-        env_file:
-            - ../.env
-        depends_on:
-            - postgres
-            - redis
+            # Ensure dependent services start before this service
+            # Docker Compose will start postgres and redis first
+            - postgres # Database must be ready for migrations and queries
+            - redis # Cache service needed for session management
 
     # pgAdmin service for database management and administration
+    # Web-based PostgreSQL administration tool for development and debugging
     pgadmin:
-        image: dpage/pgadmin4:latest
-        restart: always
+        image: dpage/pgadmin4:latest # Official pgAdmin Docker image
+        # restart: always # Keep admin interface always available
         environment:
             # Default login credentials for pgAdmin web interface
-            PGADMIN_DEFAULT_EMAIL: admin@admin.com
-            PGADMIN_DEFAULT_PASSWORD: admin
+            # WARNING: Change these credentials in production environments
+            PGADMIN_DEFAULT_EMAIL: admin@admin.com # Login email for web interface
+            PGADMIN_DEFAULT_PASSWORD: admin # Login password (insecure default)
         ports:
             # Expose pgAdmin web interface on port 5050
+            # Access via http://localhost:5050 in browser
             - "5050:80"
         depends_on:
             # Ensure PostgreSQL is ready before starting pgAdmin
+            # pgAdmin needs database connection to be useful
             - postgres
         volumes:
             # Persist pgAdmin configuration and data
+            # Saves server connections, user preferences, and query history
             - pgadmin_data:/var/lib/pgadmin
 
 # Named volumes for data persistence
+# These volumes persist data beyond container lifecycle
 volumes:
     # PostgreSQL data volume - persists database data across container restarts
+    # Critical for maintaining chat history, user data, and application state
     pgdata:
     # pgAdmin data volume - persists pgAdmin configuration and settings
+    # Saves database server connections and user interface preferences
     pgadmin_data:
+    # Backend code volume - persists application code with version control
+    # Enables git operations and development within container
+    backend_code:

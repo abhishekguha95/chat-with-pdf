@@ -1,0 +1,24 @@
+{
+  "name": "chat-with-pdf-backend",
+  "version": "1.0.0",
+  "description": "Backend and worker for Chat with PDF app",
+  "main": "app.js",
+  "scripts": {
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.528.0",
+    "@prisma/client": "^5.0.0",
+    "bullmq": "^4.0.1",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "2.0.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "prisma": "^5.0.0"
+  }
+}
