@@ -1,11 +1,11 @@
 FROM node:20-alpine
 
-WORKDIR /backend-nodejs
+WORKDIR /usr/src/app/backend-nodejs
 
 COPY package*.json ./
 RUN npm install
 
-COPY . .
+COPY src/ ./src/
 
 EXPOSE 3000
 

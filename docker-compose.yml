@@ -46,10 +46,10 @@ services:
             # This is the main entry point for frontend applications
             - "3000:3000"
         volumes:
-            # Use named volume for persistent development with version control
-            # Allows git operations and code persistence within container
-            - backend_code:/backend-nodejs
-        working_dir: /backend-nodejs
+            # Mount the entire project directory to access git from the root
+            # This makes the .git directory available inside the container
+            - .:/usr/src/app
+        working_dir: /usr/src/app/backend-nodejs/src
         command: >
             sh -c "apk update && 
                    apk add --no-cache git && 
@@ -105,6 +105,3 @@ volumes:
     # pgAdmin data volume - persists pgAdmin configuration and settings
     # Saves database server connections and user interface preferences
     pgadmin_data:
-    # Backend code volume - persists application code with version control
-    # Enables git operations and development within container
-    backend_code:

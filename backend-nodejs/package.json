@@ -2,7 +2,7 @@
   "name": "chat-with-pdf-backend",
   "version": "1.0.0",
   "description": "Backend and worker for Chat with PDF app",
-  "main": "app.js",
+  "main": "src/index.js",
   "scripts": {
     "migrate": "prisma migrate dev",
     "generate": "prisma generate"
