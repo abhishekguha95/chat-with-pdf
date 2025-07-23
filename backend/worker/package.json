@@ -1,0 +1,6 @@
+{
+	"name": "chat-with-pdf-worker",
+	"version": "1.0.0",
+	"main": "worker.js",
+	"dependencies": {}
+}

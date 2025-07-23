@@ -1,0 +1,83 @@
+# Docker Compose configuration for Chat with PDF application
+# This sets up a multi-container environment with PostgreSQL, Redis, backend API, and worker service
+version: "3.8"
+
+services:
+    # PostgreSQL database service for storing application data
+    postgres:
+        image: postgres:15
+        restart: always
+        environment:
+            # Database credentials and configuration
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: chatpdf
+        volumes:
+            # Persist database data on host machine
+            - pgdata:/var/lib/postgresql/data
+        ports:
+            # Expose PostgreSQL on port 5432 for external connections
+            - "5432:5432"
+
+    # Redis service for caching and session management
+    redis:
+        image: redis:7
+        restart: always
+        ports:
+            # Expose Redis on port 6379 for external connections
+            - "6379:6379"
+
+    # Main backend API service
+    backend-app:
+        build: ./backend/app
+        ports:
+            - "3000:3000"
+        volumes:
+            - ./backend/app:/app
+            - ./backend/app/.git:/app/.git # Ensure .git is available for version control
+        environment:
+            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
+        env_file:
+            - ../.env
+        depends_on:
+            - postgres
+            - redis
+
+    # Background worker service for processing tasks
+    backend-worker:
+        build: ./backend/worker
+        volumes:
+            - ./backend/worker:/worker
+            - ./backend/worker/.git:/worker/.git # Ensure .git is available for version control
+        environment:
+            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
+        env_file:
+            - ../.env
+        depends_on:
+            - postgres
+            - redis
+
+    # pgAdmin service for database management and administration
+    pgadmin:
+        image: dpage/pgadmin4:latest
+        restart: always
+        environment:
+            # Default login credentials for pgAdmin web interface
+            PGADMIN_DEFAULT_EMAIL: admin@admin.com
+            PGADMIN_DEFAULT_PASSWORD: admin
+        ports:
+            # Expose pgAdmin web interface on port 5050
+            - "5050:80"
+        depends_on:
+            # Ensure PostgreSQL is ready before starting pgAdmin
+            - postgres
+        volumes:
+            # Persist pgAdmin configuration and data
+            - pgadmin_data:/var/lib/pgadmin
+
+# Named volumes for data persistence
+volumes:
+    # PostgreSQL data volume - persists database data across container restarts
+    pgdata:
+    # pgAdmin data volume - persists pgAdmin configuration and settings
+    pgadmin_data:
