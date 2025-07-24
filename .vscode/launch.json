@@ -2,10 +2,10 @@
 	"configurations": [
 		{
 			"name": "Start App",
-			"program": "${workspaceFolder}/backend/app/index.js",
+			"program": "/usr/src/app/backend-nodejs/src/index.js",
 			"request": "launch",
 			"skipFiles": ["<node_internals>/**"],
-			"type": "node"
+			"type": "node",
 		},
 		{
 			"name": "Start Worker",
