@@ -9,7 +9,7 @@
 		},
 		{
 			"name": "Start Worker",
-			"program": "${workspaceFolder}/backend/worker/worker.js",
+            "program": "/usr/src/app/backend-nodejs/src/worker.js",
 			"request": "launch",
 			"skipFiles": ["<node_internals>/**"],
 			"type": "node"

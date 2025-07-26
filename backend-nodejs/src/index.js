@@ -1,6 +1,6 @@
-const express = require("express");
-const dotenv = require("dotenv");
-const projectRoutes = require("./routes/project");
+import express from "express";
+import dotenv from "dotenv";
+import projectRoutes from "./routes/project.js";
 
 dotenv.config();
 const app = express();
