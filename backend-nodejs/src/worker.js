@@ -1,25 +1,16 @@
-
 import { Worker, QueueEvents } from 'bullmq';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import pdf from 'pdf-parse';
 import { PrismaClient } from '@prisma/client';
+import { getFile } from './storage.js';
 
 const connection = {
     host: process.env.REDIS_HOST || 'redis',
     port: Number(process.env.REDIS_PORT || 6379),
 };
 
-const s3 = new S3Client({
-    region: process.env.AWS_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-});
-
 const prisma = new PrismaClient();
 
-// --- Helper: S3 Stream to Buffer ---
+// --- Helper: Stream to Buffer ---
 async function streamToBuffer(stream) {
     const chunks = [];
     for await (const chunk of stream) {
@@ -31,19 +22,14 @@ async function streamToBuffer(stream) {
 // --- Define the worker ---
 /* eslint-disable no-unused-vars */
 const worker = new Worker('pdf-processing-queue', async job => {
-    const { projectId, s3Key } = job.data;
+    const { projectId } = job.data;
 
     try {
         console.log(`[Worker] Processing job for projectId: ${projectId}`);
+        const keyName = `${projectId}.pdf`;
 
-        // Step 1: Download the PDF from S3
-        const command = new GetObjectCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
-            Key: s3Key,
-        });
-
-        const s3Response = await s3.send(command);
-        const pdfBuffer = await streamToBuffer(s3Response.Body);
+        const stream = await getFile(keyName);
+        const pdfBuffer = await streamToBuffer(stream);
 
         // Step 2: Extract text using pdf-parse
         const data = await pdf(pdfBuffer);

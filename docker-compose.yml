@@ -94,6 +94,24 @@ services:
             # Saves server connections, user preferences, and query history
             - pgadmin_data:/var/lib/pgadmin
 
+    # MinIO service for local S3-compatible object storage
+    # Used for storing and retrieving PDF files during development
+    minio:
+        image: minio/minio:latest
+        ports:
+            # Expose MinIO API on port 9000 and Console on 9001
+            - "9000:9000"
+            - "9001:9001"
+        volumes:
+            # Persist object data on host machine
+            - ./data:/data
+        environment:
+            # Default credentials for MinIO root user
+            # WARNING: Change these for production environments
+            MINIO_ROOT_USER: minioadmin
+            MINIO_ROOT_PASSWORD: minioadmin
+        command: server /data --console-address ":9001"
+
 # Named volumes for data persistence
 # These volumes persist data beyond container lifecycle
 volumes:

@@ -1,21 +1,13 @@
 import express from "express";
 import multer from "multer";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaClient } from "@prisma/client";
 import path from "path";
-import { pdfQueue } from "../queues.js"; // Ensure this path is correct
+import { pdfQueue } from "../queue.js";
+import { uploadFile, storageType } from "../storage.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
 const upload = multer(); // in-memory buffer storage
-
-const s3 = new S3Client({
-    region: process.env.AWS_REGION,
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-});
 
 // POST /projects
 router.post("/", upload.single("file"), async (req, res) => {
@@ -33,16 +25,8 @@ router.post("/", upload.single("file"), async (req, res) => {
         const fileExt = path.extname(file.originalname);
         const filename = `${project.id}${fileExt}`;
 
-        // 2. Upload to S3
-        const s3Response = await s3.send(
-            new PutObjectCommand({
-                Bucket: process.env.S3_BUCKET_NAME,
-                Key: filename,
-                Body: file.buffer,
-                ContentType: file.mimetype,
-            })
-        );
-        console.log("File uploaded to S3: ", s3Response);
+        // 2. Upload to S3 or Minio
+        await uploadFile(filename, file.buffer, file.size);
 
         // 3. Save file record in DB
         await prisma.file.create({
@@ -53,10 +37,9 @@ router.post("/", upload.single("file"), async (req, res) => {
             },
         });
 
-
         await pdfQueue.add('process-pdf', {
             projectId: project.id, 
-            s3Key: filename
+            storageType: storageType
         });
 
         return res.status(201).json({
