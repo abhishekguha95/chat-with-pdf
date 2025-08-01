@@ -1,5 +1,6 @@
 import { Worker, QueueEvents } from 'bullmq';
 import pdf from 'pdf-parse';
+import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { getFile } from './storage.js';
 
@@ -10,7 +11,6 @@ const connection = {
 
 const prisma = new PrismaClient();
 
-// --- Helper: Stream to Buffer ---
 async function streamToBuffer(stream) {
     const chunks = [];
     for await (const chunk of stream) {
@@ -19,51 +19,59 @@ async function streamToBuffer(stream) {
     return Buffer.concat(chunks);
 }
 
-// --- Define the worker ---
-/* eslint-disable no-unused-vars */
-const worker = new Worker('pdf-processing-queue', async job => {
-    const { projectId } = job.data;
+const worker = new Worker(
+    'pdf-processing-queue',
+    async job => {
+        const { projectId } = job.data;
 
-    try {
-        console.log(`[Worker] Processing job for projectId: ${projectId}`);
-        const keyName = `${projectId}.pdf`;
+        try {
+            console.log(`[Worker] Processing job for projectId: ${projectId}`);
+            const keyName = `${projectId}.pdf`;
 
-        const stream = await getFile(keyName);
-        const pdfBuffer = await streamToBuffer(stream);
+            const stream = await getFile(keyName);
+            const pdfBuffer = await streamToBuffer(stream);
 
-        // Step 2: Extract text using pdf-parse
-        const data = await pdf(pdfBuffer);
-        const textContent = data.text;
+            // Extract text from PDF
+            const data = await pdf(pdfBuffer);
+            const textContent = data.text;
 
-        // Step 3: Simulate storing "embeddings" – here just storing text for now
-        await prisma.embedding.create({
-            data: {
-                projectId,
-                content: textContent,
-                // future: store real vector embeddings here
-            },
-        });
+            // Call the embedding-service API
+            const response = await axios.post('http://embeddings:8000/embed', {
+                texts: [textContent],
+            });
 
-        // Step 4: Mark project status = 'created'
-        await prisma.project.update({
-            where: { id: projectId },
-            data: { status: 'CREATED' },
-        });
+            const { embeddings } = response.data;
 
-        console.log(`[Worker] Completed job for projectId: ${projectId}`);
-    } catch (err) {
-        console.error(`[Worker] Failed job for projectId ${projectId}`, err);
+            // Store embedding in DB
+            await prisma.embedding.create({
+                data: {
+                    projectId,
+                    content: textContent,
+                    vector: embeddings, // assumes vector is a float[] column (PostgreSQL + pgvector)
+                },
+            });
 
-        await prisma.project.update({
-            where: { id: job.data.projectId },
-            data: { status: 'FAILED' },
-        });
+            // Update project status
+            await prisma.project.update({
+                where: { id: projectId },
+                data: { status: 'CREATED' },
+            });
 
-        throw err; // let BullMQ mark the job as failed
-    }
-}, { connection });
+            console.log(`[Worker] Completed job for projectId: ${projectId}`);
+        } catch (err) {
+            console.error(`[Worker] Failed job for projectId ${projectId}`, err);
 
-// --- Optional: Listen to queue events (for logging/debugging) ---
+            await prisma.project.update({
+                where: { id: job.data.projectId },
+                data: { status: 'FAILED' },
+            });
+
+            throw err;
+        }
+    },
+    { connection }
+);
+
 const events = new QueueEvents('pdf-processing-queue', { connection });
 
 events.on('completed', ({ jobId }) => {

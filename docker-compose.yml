@@ -112,6 +112,17 @@ services:
             MINIO_ROOT_PASSWORD: minioadmin
         command: server /data --console-address ":9001"
 
+    # Embeddings service for generating vector embeddings from PDF content
+    # Processes text chunks and converts them to numerical vectors for similarity search
+    embeddings:
+        build:
+            # Build custom Docker image from local embedding service directory
+            context: ./embedding-service-python # Build context for embedding microservice
+        ports:
+            # Expose embeddings API on port 8001
+            # Maps host port 8001 to container port 8000 for external access
+            - "8001:8000"
+
 # Named volumes for data persistence
 # These volumes persist data beyond container lifecycle
 volumes:
