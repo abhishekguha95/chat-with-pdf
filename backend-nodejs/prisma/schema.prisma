@@ -2,11 +2,13 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 model Project {
@@ -34,10 +36,8 @@ model Embedding {
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   content    String
-  vector     Float[]  // Storing as vector (Requires pgvector extension)
+  vector     Unsupported("vector")
   createdAt  DateTime @default(now())
-
-  @@index([vector]) // Vector search index
 }
 
 enum Status {

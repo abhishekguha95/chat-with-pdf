@@ -7,7 +7,7 @@ services:
     # PostgreSQL database service for storing application data
     # Acts as the primary data store for user sessions, chat history, and PDF metadata
     postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg15 # PostgreSQL with pgvector extension for vector similarity search
         # restart: always # Automatically restart container if it stops unexpectedly
         environment:
             # Database credentials and configuration

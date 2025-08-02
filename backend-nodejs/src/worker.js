@@ -3,6 +3,7 @@ import pdf from 'pdf-parse';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { getFile } from './storage.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const connection = {
     host: process.env.REDIS_HOST || 'redis',
@@ -17,6 +18,17 @@ async function streamToBuffer(stream) {
         chunks.push(chunk);
     }
     return Buffer.concat(chunks);
+}
+
+async function insertEmbedding(projectId, content, vector) {
+    try {
+        await prisma.$executeRawUnsafe(
+            `INSERT INTO "Embedding" (id, "projectId", content, vector, "createdAt") VALUES ($1, $2, $3, $4::vector, NOW())`,
+            uuidv4(), projectId, content, vector);
+    } catch (error) {
+        console.error('Error inserting embedding:', error);
+        throw error;
+    }
 }
 
 const worker = new Worker(
@@ -43,13 +55,14 @@ const worker = new Worker(
             const { embeddings } = response.data;
 
             // Store embedding in DB
-            await prisma.embedding.create({
-                data: {
-                    projectId,
-                    content: textContent,
-                    vector: embeddings, // assumes vector is a float[] column (PostgreSQL + pgvector)
-                },
-            });
+            // await prisma.embedding.create({
+            //     data: {
+            //         projectId,
+            //         content: textContent,
+            //         vector: embeddings,
+            //     },
+            // });
+            await insertEmbedding(projectId, textContent, embeddings[0]);
 
             // Update project status
             await prisma.project.update({
