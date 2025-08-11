@@ -1,12 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
-import projectRoutes from "./routes/project.js";
+import uploadRoutes from "./routes/upload.js";
+import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
 const app = express();
 
 app.use(express.json());
-app.use("/projects", projectRoutes);
+app.use("/upload", uploadRoutes);
+app.use("/chat", chatRoutes);
 
 app.get("/", (req, res) => res.send("API is running"));
 

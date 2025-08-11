@@ -2,7 +2,7 @@
 	"configurations": [
 		{
 			"name": "Start App",
-			"program": "/usr/src/app/backend-nodejs/src/index.js",
+			"program": "/usr/src/chat-with-pdf/app-server-nodejs/index.js",
 			"request": "launch",
 			"skipFiles": ["<node_internals>/**"],
 			"type": "node",

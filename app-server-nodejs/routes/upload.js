@@ -2,8 +2,8 @@ import express from "express";
 import multer from "multer";
 import { PrismaClient } from "@prisma/client";
 import path from "path";
-import { pdfQueue } from "../queue.js";
-import { uploadFile, storageType } from "../storage.js";
+// import { pdfQueue } from "../queue.js";
+import { uploadFile } from "../services/file-storage.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -37,10 +37,10 @@ router.post("/", upload.single("file"), async (req, res) => {
             },
         });
 
-        await pdfQueue.add('process-pdf', {
-            projectId: project.id, 
-            storageType: storageType
-        });
+        // await pdfQueue.add('process-pdf', {
+        //     projectId: project.id, 
+        //     storageType: storageType
+        // });
 
         return res.status(201).json({
             message: 'Project created and queued for processing',

@@ -1,0 +1,61 @@
+// schema.prisma
+
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+    provider   = "postgresql"
+    url        = env("DATABASE_URL")
+    extensions = [vector]
+}
+
+model Project {
+    id          String      @id @default(uuid())
+    title       String
+    description String
+    status      Status      @default(CREATING)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+    files       File[]
+    embeddings  Embedding[]
+
+    @@map("projects")
+}
+
+model File {
+    id               String      @id @default(uuid())
+    projectId        String
+    project          Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    filename         String
+    url              String
+    processingStatus String      @default("pending") // pending, processing, completed, failed
+    fileSize         Int? // optional: file size in bytes
+    createdAt        DateTime    @default(now())
+    embeddings       Embedding[]
+
+    @@map("files")
+}
+
+model Embedding {
+    id         String                @id @default(uuid())
+    projectId  String
+    project    Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    fileId     String
+    file       File                  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    content    String
+    vector     Unsupported("vector")
+    chunkIndex Int? // which chunk this is (0, 1, 2...)
+    pageNumber Int? // which page this chunk came from
+    metadata   Json?                 @default("{}") // additional metadata
+    createdAt  DateTime              @default(now())
+
+    @@map("embeddings")
+}
+
+enum Status {
+    CREATING
+    FAILED
+    CREATED
+}

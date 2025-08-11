@@ -1,134 +1,340 @@
 # Docker Compose configuration for Chat with PDF application
-# This sets up a multi-container environment with PostgreSQL, Redis, backend API, and worker service
 # Version 3.8 provides support for external networks, secrets, and configs
-version: "3.8"
+# version: "3.8"
 
 services:
     # PostgreSQL database service for storing application data
     # Acts as the primary data store for user sessions, chat history, and PDF metadata
+    # Uses pgvector extension for vector embeddings storage and similarity search
     postgres:
-        image: pgvector/pgvector:pg15 # PostgreSQL with pgvector extension for vector similarity search
+        image: pgvector/pgvector:pg15 # PostgreSQL 15 with pgvector extension for vector similarity search
         # restart: always # Automatically restart container if it stops unexpectedly
         environment:
             # Database credentials and configuration
-            # These environment variables initialize the PostgreSQL instance
-            POSTGRES_USER: postgres # Database superuser account
-            POSTGRES_PASSWORD: postgres # Password for superuser (change in production!)
-            POSTGRES_DB: chatpdf # Default database created on startup
+            # These environment variables initialize the PostgreSQL instance on first startup
+            POSTGRES_USER: postgres # Database superuser account - used for administrative tasks
+            POSTGRES_PASSWORD: postgres # Password for superuser (WARNING: change in production!)
+            POSTGRES_DB: chatpdf # Default database created on startup - contains application tables
         volumes:
-            # Persist database data on host machine to survive container restarts
-            # Maps named volume 'pgdata' to PostgreSQL's data directory
-            - pgdata:/var/lib/postgresql/data
+            # Persist database data on host machine to survive container restarts and updates
+            # Maps local ./data/postgres directory to PostgreSQL's data directory inside container
+            # This ensures data persistence across container lifecycle and allows easy backup/restore
+            - ./data/postgres:/var/lib/postgresql/data
         ports:
-            # Expose PostgreSQL on port 5432 for external connections
-            # Format: "host_port:container_port" - allows direct DB access from host
+            # Expose PostgreSQL on standard port 5432 for external connections
+            # Format: "host_port:container_port" - allows direct DB access from host machine
+            # Useful for development, debugging, and database administration tools
             - "5432:5432"
-
-    # Redis service for caching and session management
-    # Used for storing temporary data, user sessions, and background job queues
-    redis:
-        image: redis:7 # Latest stable Redis version for performance and security
-        # restart: always # Ensure Redis is always available for caching operations
-        ports:
-            # Expose Redis on port 6379 for external connections
-            # Allows backend services and external tools to connect to Redis
-            - "6379:6379"
-
-    # Main backend API service
-    # Handles HTTP requests, user authentication, PDF processing coordination
-    backend:
-        build:
-            # Build custom Docker image from local Dockerfile
-            context: ./backend-nodejs # Build context directory
-            dockerfile: Dockerfile # Dockerfile location within context
-        ports:
-            # Expose backend API on port 3000
-            # This is the main entry point for frontend applications
-            - "3000:3000"
-        volumes:
-            # Mount the entire project directory to access git from the root
-            # This makes the .git directory available inside the container
-            - .:/usr/src/app
-        working_dir: /usr/src/app/backend-nodejs/src
-        command: >
-            sh -c "apt-get update && apt-get install -y git && tail -f /dev/null"
-        environment:
-            # Database connection string for PostgreSQL
-            # Uses service name 'postgres' for internal Docker network resolution
-            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
-            # Git configuration for commits within container
-            GIT_AUTHOR_NAME: "Abhishek Guha"
-            GIT_AUTHOR_EMAIL: "qohor2525@gmail.com"
-            GIT_COMMITTER_NAME: "Abhishek Guha"
-            GIT_COMMITTER_EMAIL: "qohor2525@gmail.com"
-        env_file:
-            # Load additional environment variables from .env file
-            # Contains API keys, secrets, and configuration not in version control
-            - .env
-        depends_on:
-            # Ensure dependent services start before this service
-            # Docker Compose will start postgres and redis first
-            - postgres # Database must be ready for migrations and queries
-            - redis # Cache service needed for session management
+        # Health check to ensure database is ready before dependent services start
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
 
     # pgAdmin service for database management and administration
-    # Web-based PostgreSQL administration tool for development and debugging
+    # Web-based PostgreSQL administration tool for development, debugging, and monitoring
+    # Provides GUI interface for database operations, query execution, and schema management
     pgadmin:
-        image: dpage/pgadmin4:latest # Official pgAdmin Docker image
-        # restart: always # Keep admin interface always available
+        image: dpage/pgadmin4:latest # Official pgAdmin4 Docker image with latest features
+        restart: unless-stopped # Keep admin interface available but allow manual stops
         environment:
             # Default login credentials for pgAdmin web interface
-            # WARNING: Change these credentials in production environments
-            PGADMIN_DEFAULT_EMAIL: admin@admin.com # Login email for web interface
-            PGADMIN_DEFAULT_PASSWORD: admin # Login password (insecure default)
+            # These credentials are used to access the pgAdmin dashboard
+            # WARNING: Change these credentials in production environments for security
+            PGADMIN_DEFAULT_EMAIL: admin@admin.com # Login email for web interface authentication
+            PGADMIN_DEFAULT_PASSWORD: admin # Login password (insecure default - change in production)
+
+            # Optional: Disable enhanced cookie protection for development
+            PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
         ports:
             # Expose pgAdmin web interface on port 5050
-            # Access via http://localhost:5050 in browser
+            # Access via http://localhost:5050 in web browser
+            # Maps container port 80 (nginx) to host port 5050
             - "5050:80"
         depends_on:
-            # Ensure PostgreSQL is ready before starting pgAdmin
-            # pgAdmin needs database connection to be useful
+            # Ensure PostgreSQL service is ready before starting pgAdmin
+            # pgAdmin needs database connection to be functional
             - postgres
         volumes:
-            # Persist pgAdmin configuration and data
-            # Saves server connections, user preferences, and query history
-            - pgadmin_data:/var/lib/pgadmin
+            # Persist pgAdmin configuration, user preferences, and connection data
+            # Saves server connections, query history, and dashboard customizations
+            # Prevents loss of configuration when container is restarted
+            # Maps local ./data/pgadmin directory to pgAdmin's data directory
+            - ./data/pgadmin:/var/lib/pgadmin
+
+    # Redis service for caching and session management (currently commented out)
+    # Used for storing temporary data, user sessions, and background job queues
+    # Provides fast in-memory data access for frequently requested information
+    # redis:
+    #     image: redis:7-alpine # Latest stable Redis version with smaller Alpine Linux base
+    #     restart: always # Ensure Redis is always available for caching operations
+    #     ports:
+    #         # Expose Redis on standard port 6379 for external connections
+    #         # Allows backend services and external tools to connect to Redis
+    #         - "6379:6379"
+    #     volumes:
+    #         # Optional: persist Redis data for session continuity
+    #         - redis_data:/data
+    #     command: redis-server --appendonly yes # Enable AOF persistence
+
+    # RabbitMQ message broker service for asynchronous task processing
+    # Handles communication between backend API and worker services
+    # Ensures reliable message delivery for PDF processing workflows
+    rabbitmq:
+        image: rabbitmq:3-management # RabbitMQ with web management interface
+        restart: always
+        environment:
+            # Default credentials for RabbitMQ management interface and connections
+            RABBITMQ_DEFAULT_USER: admin
+            RABBITMQ_DEFAULT_PASS: admin
+        ports:
+            # RabbitMQ AMQP protocol port for message publishing/consuming
+            - "5672:5672"
+            # Web management interface for monitoring queues and exchanges
+            - "15672:15672"
+        volumes:
+            # Persist RabbitMQ data including queues, exchanges, and messages
+            # Ensures message delivery reliability across container restarts
+            # Maps local ./data/rabbitmq directory to RabbitMQ's data directory
+            - ./data/rabbitmq:/var/lib/rabbitmq
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "ping"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    # Main backend API service (Node.js)
+    # Handles HTTP requests, user authentication, PDF upload coordination, and API endpoints
+    # Acts as the primary interface between frontend applications and backend services
+    app-server-nodejs:
+        build:
+            # Build custom Docker image from local Dockerfile
+            context: ./app-server-nodejs # Build context directory containing source code
+            dockerfile: Dockerfile # Dockerfile location within context directory
+        ports:
+            # Expose backend API on port 3000 for HTTP requests
+            # This is the main entry point for frontend applications and external API consumers
+            - "3000:3000"
+        volumes:
+            # Mount the entire project directory to enable live development and git access
+            # This makes the .git directory available inside the container for version control
+            # Also enables hot-reloading during development
+            - .:/usr/src/chat-with-pdf
+        working_dir: /usr/src/chat-with-pdf/app-server-nodejs # Set working directory for executed commands
+        # Development command: installs git and keeps container running for debugging
+        # In production, this should be replaced with the actual application startup command
+        command: >
+            sh -c "apt-get update && apt-get install -y git && tail -f /dev/null"
+        env_file:
+            # Load additional environment variables from .env file
+            # Contains sensitive data like API keys, secrets, and configuration not in version control
+            # Should include: OPENAI_API_KEY, JWT_SECRET, etc.
+            - .env
+        environment:
+            # Database connection string for PostgreSQL using internal Docker network
+            # Uses service name 'postgres' for DNS resolution within Docker network
+            # Format: postgresql://<username>:<password>@<host>:<port>/<database>
+            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
+
+            # Message broker connection string for RabbitMQ
+            # Used for publishing PDF processing tasks and receiving completion notifications
+            RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+
+            # Caching service connection (currently disabled)
+            # REDIS_URL: redis://redis:6379
+
+            # Object storage configuration for MinIO (S3-compatible)
+            # Used for storing uploaded PDF files and processed document chunks
+            MINIO_ENDPOINT: http://minio:9000
+            STORAGE_TYPE: minio # Specifies MinIO as the storage backend
+            STORAGE_BUCKET: chatpdf-bucket-1753382182 # Unique bucket name for PDF storage
+
+            # gRPC connection configuration for chat service
+            # Enables communication with Python-based chat processing service
+            CHAT_GRPC_HOST: chat-python # Service name for internal network resolution
+            CHAT_GRPC_PORT: 50051 # Standard gRPC port
+
+        depends_on:
+            # Define service startup order - ensures dependencies are ready before this service starts
+            - postgres # Database must be ready for schema migrations and data operations
+            # - redis # Cache service needed for session management (if enabled)
+            - rabbitmq # Message broker required for task queue operations
+            - minio # Object storage needed for PDF file operations
+            - pdf-processor-python # PDF processing service for document workflows
+            # - chat-python # Chat service required for processing user messages
+        # Health check to ensure API is responding
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    # Python service for PDF document processing (Workflow 1: Upload → Process → Store)
+    # Handles PDF text extraction, chunking, embedding generation, and vector storage
+    # Consumes messages from RabbitMQ queue to process uploaded documents asynchronously
+    pdf-processor-python:
+        build:
+            context: ./pdf-processor-python # Source code directory for PDF processor
+            dockerfile: Dockerfile # Dockerfile for Python environment setup
+        volumes:
+            # Mount project root to enable git access and live development
+            # Allows access to shared configuration and version control
+            - .:/usr/src/chat-with-pdf
+            - pip-cache:/root/.cache/pip 
+            - hf-cache:/cache/hf
+        working_dir: /usr/src/chat-with-pdf/pdf-processor-python # Set working directory for Python modules
+        env_file:
+            # Load environment variables for API keys and external service configuration
+            # Should include: OPENAI_API_KEY, HUGGINGFACE_API_KEY, etc.
+            - .env
+        environment:
+            # PostgreSQL connection using SQLAlchemy-compatible URL format
+            # psycopg is the modern PostgreSQL adapter for Python
+            DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/chatpdf
+
+            # RabbitMQ connection for consuming PDF processing tasks
+            # Worker listens for new PDF upload notifications
+            RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+
+            # MinIO configuration for PDF file retrieval and processed data storage
+            MINIO_ENDPOINT: http://minio:9000
+            MINIO_ACCESS_KEY: minioadmin # Access credentials for MinIO operations
+            MINIO_SECRET_KEY: minioadmin # Secret key for MinIO authentication
+
+            PIP_CACHE_DIR: /root/.cache/pip
+            HF_HOME: /cache/hf
+
+        depends_on:
+            # Service dependencies - ensures required infrastructure is available
+            - postgres # Database needed for storing processed document metadata and embeddings
+            - rabbitmq # Message broker needed for receiving processing tasks
+            - minio # Object storage needed for accessing uploaded PDF files
+        # No exposed ports - this is a pure consumer service (worker process)
+        # Runs the PDF processor worker module to handle document processing tasks
+        # command: python -m worker.pdf_processor
+        command: tail -f /dev/null
+        # restart: unless-stopped # Restart worker if it crashes, but not if manually stopped
+        # Resource limits to prevent excessive memory usage during PDF processing
+        # deploy:
+        #     resources:
+        #         limits:
+        #             memory: 1G
+        #         reservations:
+        #             memory: 512M
+
+    # Python service for chat processing (Workflow 2: Query → Retrieve → Generate)
+    # Handles user chat messages, vector similarity search, and response generation
+    # Provides gRPC interface for real-time communication with backend API
+    # chat-service-python:
+    #     build:
+    #         context: ./chat-service-python # Source code directory for chat service
+    #         dockerfile: Dockerfile # Dockerfile for Python chat environment
+    #     volumes:
+    #         # Mount project root to enable git access and live development
+    #         # Allows access to shared configuration and version control
+    #         - .:/usr/src/chat-with-pdf
+    #     working_dir: /usr/src/chat-with-pdf/chat-service-python # Set working directory for Python modules
+    #     env_file:
+    #         # Load environment variables for API keys and external service configuration
+    #         # Should include: OPENAI_API_KEY, HUGGINGFACE_API_KEY, etc.
+    #         - .env
+    #     environment:
+    #         # Database connection for accessing stored document embeddings
+    #         # Uses same database as PDF processor for consistency
+    #         DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/chatpdf
+
+    #         # Ollama connection for local LLM inference (currently commented out)
+    #         # Provides local language model for generating chat responses
+    #         OLLAMA_HOST: http://ollama:11434
+    #     depends_on:
+    #         # Service dependencies for chat functionality
+    #         - postgres # Database needed for vector similarity search
+    #         # - ollama # Local LLM service (if using local models instead of OpenAI)
+    #     ports:
+    #         # Expose gRPC port for communication with backend API
+    #         # Allows real-time bidirectional communication for chat operations
+    #         - "50051:50051" # Standard gRPC port for chat service
+    #     # Start the gRPC server to handle chat requests from backend
+    #     # command: python -m server.grpc_server
+    #     command: tail -f /dev/null
+    #     # restart: unless-stopped # Ensure chat service is always available
+    #     # Health check for gRPC service availability
+    #     healthcheck:
+    #         test: ["CMD", "python", "-c", "import grpc; import sys; sys.exit(0)"]
+    #         interval: 30s
+    #         timeout: 10s
+    #         retries: 3
 
     # MinIO service for local S3-compatible object storage
-    # Used for storing and retrieving PDF files during development
+    # Provides Amazon S3-compatible API for storing and retrieving PDF files
+    # Used as local development alternative to AWS S3 or other cloud storage
     minio:
-        image: minio/minio:latest
+        image: minio/minio:latest # Latest MinIO server image with S3 compatibility
+        restart: unless-stopped # Ensure storage service availability
         ports:
-            # Expose MinIO API on port 9000 and Console on 9001
+            # Expose MinIO API on port 9000 for S3-compatible operations
+            # Used by application services for file upload/download operations
             - "9000:9000"
+            # Expose MinIO Console on port 9001 for web-based management
+            # Provides GUI for bucket management, file browsing, and administration
             - "9001:9001"
         volumes:
-            # Persist object data on host machine
-            - ./data:/data
+            # Persist object storage data on host machine filesystem
+            # Ensures uploaded files survive container restarts and updates
+            # Maps local ./data/minio directory to MinIO's data storage location
+            - ./data/minio:/data
         environment:
-            # Default credentials for MinIO root user
-            # WARNING: Change these for production environments
-            MINIO_ROOT_USER: minioadmin
-            MINIO_ROOT_PASSWORD: minioadmin
+            # Default root user credentials for MinIO administration
+            # These credentials provide full administrative access to MinIO
+            # WARNING: Change these credentials for production environments
+            MINIO_ROOT_USER: minioadmin # Root username for MinIO admin access
+            MINIO_ROOT_PASSWORD: minioadmin # Root password for MinIO admin access
+        # Start MinIO server with console interface
+        # Serves S3-compatible API on port 9000 and web console on port 9001
         command: server /data --console-address ":9001"
+        # Health check to ensure MinIO is ready for file operations
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+            interval: 30s
+            timeout: 20s
+            retries: 3
 
-    # Embeddings service for generating vector embeddings from PDF content
-    # Processes text chunks and converts them to numerical vectors for similarity search
-    embeddings:
-        build:
-            # Build custom Docker image from local embedding service directory
-            context: ./embedding-service-python # Build context for embedding microservice
-        ports:
-            # Expose embeddings API on port 8001
-            # Maps host port 8001 to container port 8000 for external access
-            - "8001:8000"
+    # Ollama service for local LLM inference (currently commented out)
+    # Provides local language model hosting for chat response generation
+    # Alternative to cloud-based LLM APIs like OpenAI for privacy and cost control
+    # ollama:
+    #     image: ollama/ollama:latest
+    #     ports:
+    #         - "11434:11434" # Ollama API port
+    #     volumes:
+    #         # Persist downloaded models
+    #         - ollama_data:/root/.ollama
+    #     environment:
+    #         # GPU support (if available)
+    #         - CUDA_VISIBLE_DEVICES=0
+    #     deploy:
+    #         resources:
+    #             reservations:
+    #                 devices:
+    #                   - driver: nvidia
+    #                     count: 1
+    #                     capabilities: [gpu]
 
-# Named volumes for data persistence
-# These volumes persist data beyond container lifecycle
+# Named volumes for data persistence across container lifecycle
+# These volumes ensure data survives container stops, restarts, and updates
+# Critical for maintaining application state and user data integrity
 volumes:
-    # PostgreSQL data volume - persists database data across container restarts
-    # Critical for maintaining chat history, user data, and application state
-    pgdata:
-    # pgAdmin data volume - persists pgAdmin configuration and settings
-    # Saves database server connections and user interface preferences
-    pgadmin_data:
+    pip-cache:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: F:\docker-volumes\pip-cache
+    hf-cache:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: F:\docker-volumes\hf-cache
+

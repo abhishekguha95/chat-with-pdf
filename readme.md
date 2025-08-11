@@ -32,7 +32,7 @@ A fullstack backend for conversational querying of PDF documents using local LLM
 
 ## 🗃️ Database Models
 
-See [`backend-nodejs/prisma/schema.prisma`](backend-nodejs/prisma/schema.prisma) for full schema.
+See [`app-server-nodejs/prisma/schema.prisma`](app-server-nodejs/prisma/schema.prisma) for full schema.
 
 -   **Project:** PDF metadata and status
 -   **File:** Uploaded file info
