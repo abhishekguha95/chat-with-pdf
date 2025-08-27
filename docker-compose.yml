@@ -213,7 +213,7 @@ services:
         # No exposed ports - this is a pure consumer service (worker process)
         # Runs the PDF processor worker module to handle document processing tasks
         # command: python -m worker.pdf_processor
-        command: tail -f /dev/null
+        command:  sh -c "apt-get update && apt-get install -y git && tail -f /dev/null"
         # restart: unless-stopped # Restart worker if it crashes, but not if manually stopped
         # Resource limits to prevent excessive memory usage during PDF processing
         # deploy:

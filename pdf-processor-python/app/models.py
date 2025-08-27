@@ -1,50 +1,59 @@
 # app/models.py
-from sqlalchemy import Column, String, Text, DateTime, Integer, JSON
+from sqlalchemy import Column, String, Text, DateTime, Integer, JSON, Float
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 import uuid
 from .database import Base
 
-# Python explanation: This creates database table models
-# Each class represents a table, each Column represents a field
+def uuid_str():
+    return str(uuid.uuid4())
 
 class Project(Base):
-    """
-    Represents the 'projects' table
-    Base is a SQLAlchemy class that gives us database functionality
-    """
-    __tablename__ = "projects"  # Must match your Prisma @@map name
-    
-    # Column definitions - these must match your Prisma schema exactly
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    __tablename__ = "projects"
+    id = Column(String, primary_key=True, default=uuid_str)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    status = Column(String, default='CREATING')  # CREATING, FAILED, CREATED
+    status = Column(String, default="CREATING")
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
     updatedAt = Column(DateTime(timezone=True), onupdate=func.now())
 
 class File(Base):
-    """Represents the 'files' table"""
     __tablename__ = "files"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    projectId = Column(String, nullable=False)  # Foreign key to projects table
+    id = Column(String, primary_key=True, default=uuid_str)
+    projectId = Column(String, nullable=False)
     filename = Column(String, nullable=False)
-    url = Column(String, nullable=False)  # MinIO path
-    processingStatus = Column(String, default='pending')  # New field
-    fileSize = Column(Integer)  # New field (optional)
+    originalFilename = Column(String)  # optional
+    url = Column(String, nullable=False)  # MinIO/S3 path
+    mimeType = Column(String)
+    fileSize = Column(Integer)
+    uploadStatus = Column(String, default="uploaded")
+    processingStatus = Column(String, default="pending")
+    metadata = Column(JSON)
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
+    updatedAt = Column(DateTime(timezone=True), onupdate=func.now())
 
-class Embedding(Base):
-    """Represents the 'embeddings' table"""
-    __tablename__ = "embeddings"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+class Chunk(Base):
+    __tablename__ = "chunks"
+    id = Column(String, primary_key=True, default=uuid_str)
     projectId = Column(String, nullable=False)
     fileId = Column(String, nullable=False)
-    content = Column(Text, nullable=False)  # The text chunk
-    vector = Column(Vector(384))  # The embedding vector (384 dimensions for MiniLM)
-    chunkIndex = Column(Integer)  # New field
-    pageNumber = Column(Integer)  # New field
-    metadata = Column(JSON, default={})  # New field
+    content = Column(Text, nullable=False)
+    vector = Column(Vector(384))  # nullable by default in SQLAlchemy; set nullable=True if desired
+    chunkIndex = Column(Integer)
+    pageNumber = Column(Integer)
+    charStart = Column(Integer)
+    charEnd = Column(Integer)
+    metadata = Column(JSON)
+    createdAt = Column(DateTime(timezone=True), server_default=func.now())
+
+class ProcessingJob(Base):
+    __tablename__ = "processing_jobs"
+    id = Column(String, primary_key=True, default=uuid_str)
+    fileId = Column(String, nullable=False)
+    jobId = Column(String, unique=True, nullable=False)
+    status = Column(String, default="pending")
+    errorMessage = Column(Text)
+    progress = Column(Float, default=0.0)
+    startedAt = Column(DateTime(timezone=True))
+    completedAt = Column(DateTime(timezone=True))
     createdAt = Column(DateTime(timezone=True), server_default=func.now())
