@@ -135,20 +135,20 @@ services:
             # Database connection string for PostgreSQL using internal Docker network
             # Uses service name 'postgres' for DNS resolution within Docker network
             # Format: postgresql://<username>:<password>@<host>:<port>/<database>
-            DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
+            # DATABASE_URL: postgres://postgres:postgres@postgres:5432/chatpdf
 
             # Message broker connection string for RabbitMQ
             # Used for publishing PDF processing tasks and receiving completion notifications
-            RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+            # RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
 
             # Caching service connection (currently disabled)
             # REDIS_URL: redis://redis:6379
 
             # Object storage configuration for MinIO (S3-compatible)
             # Used for storing uploaded PDF files and processed document chunks
-            MINIO_ENDPOINT: http://minio:9000
-            STORAGE_TYPE: minio # Specifies MinIO as the storage backend
-            STORAGE_BUCKET: chatpdf-bucket-1753382182 # Unique bucket name for PDF storage
+            # MINIO_ENDPOINT: minio
+            # STORAGE_TYPE: minio # Specifies MinIO as the storage backend
+            # STORAGE_BUCKET: chatpdf-bucket-1753382182 # Unique bucket name for PDF storage
 
             # gRPC connection configuration for chat service
             # Enables communication with Python-based chat processing service

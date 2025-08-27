@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chat;
+
+service ChatService {
+  rpc StreamChat(ChatRequest) returns (stream ChatResponse);
+}
+
+message ChatRequest {
+  string message = 1;
+  string project_id = 2;
+  string user_id = 3;
+  repeated ChatMessage chat_history = 4;
+}
+
+message ChatMessage {
+  string content = 1;
+  string role = 2;
+  int64 timestamp = 3;
+}
+
+message ChatResponse {
+  string token = 1;
+  bool complete = 2;
+  string error = 3;
+  repeated DocumentSource sources = 4;
+}
+
+message DocumentSource {
+  string file_id = 1;
+  string filename = 2;
+  int32 page_number = 3;
+  int32 chunk_index = 4;
+  float similarity_score = 5;
+}
