@@ -138,13 +138,13 @@ async function createFile(projectId, filename, url, fileSize) {
 /**
  * Creates a new processing job record
  * @param {string} jobId - The unique identifier for the processing job
- * @param {string} documentId - The ID of the document being processed
+ * @param {string} fileId - The ID of the file being processed
  * @returns {Promise<object>} - The created processing job object
  */
-async function createProcessingJob(jobId, documentId) {
-    console.log(`[DATABASE] Creating processing job: ${jobId} for document ${documentId}`);
+async function createProcessingJob(jobId, fileId) {
+    console.log(`[DATABASE] Creating processing job: ${jobId} for file ${fileId}`);
     const job = await prisma.processingJob.create({
-        data: { jobId, documentId }
+        data: { jobId, fileId }
     });
     console.log(`[DATABASE] Processing job created with ID: ${job.id}`);
     return job;

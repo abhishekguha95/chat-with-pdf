@@ -1,125 +1,97 @@
 // schema.prisma
 generator client {
-  provider = "prisma-client-js"
+    provider        = "prisma-client-js"
     previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
+// Enable pgvector via migration SQL: CREATE EXTENSION IF NOT EXISTS vector;
 
-
-// Main project management table
+// Projects own files and chunks
 model Project {
-  id          String   @id @default(uuid())
-  title       String   @db.VarChar(255)
-  description String
-  status      String   @default("CREATING") @db.VarChar(50)
-  createdAt   DateTime @default(now()) @map("createdAt")
-  updatedAt   DateTime @updatedAt @map("updatedAt")
-  
-  // Relations
-  files       File[]
-  embeddings  Embedding[]
-  
-  @@map("projects")
+    id          String   @id @default(uuid())
+    title       String   @db.VarChar(255)
+    description String
+    status      String   @default("creating") @db.VarChar(50) // creating|failed|ready, etc.
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    files  File[]
+    chunks Chunk[] // denormalized read model for retrieval
+
+    @@map("projects")
 }
 
-// File storage metadata table
+// Unified file/document metadata
 model File {
-  id               String   @id @default(uuid())
-  projectId        String
-  filename         String   @db.VarChar(255)
-  url              String   @db.VarChar(500)
-  processingStatus String   @default("pending") @db.VarChar(50)
-  fileSize         Int?
-  createdAt        DateTime @default(now())
-  
-  // Relations
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  embeddings  Embedding[]
-  
-  @@map("files")
+    id               String   @id @default(uuid())
+    projectId        String   @map("project_id")
+    // names + storage
+    filename         String   @db.VarChar(255)
+    url              String   @db.VarChar(500) // S3/MinIO path
+    mimeType         String?  @map("mime_type") @db.VarChar(100)
+    fileSize         Int?     @map("file_size")
+    // lifecycle
+    uploadStatus     String   @default("pending") @map("upload_status") @db.VarChar(50) // pending|uploaded|failed
+    processingStatus String   @default("pending") @map("processing_status") @db.VarChar(50) // pending|processing|completed|failed
+    // provenance and extra
+    metadata         Json?
+    createdAt        DateTime @default(now()) @map("created_at")
+    updatedAt        DateTime @updatedAt @map("updated_at")
+
+    project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    chunks        Chunk[]
+    ProcessingJob ProcessingJob[]
+
+    @@index([projectId])
+    @@map("files")
 }
 
-// Vector embeddings table - main table for RAG search
-model Embedding {
-  id         String   @id @default(uuid())
-  projectId  String
-  fileId     String
-  content    String   @db.Text
-  // Vector field - pgvector handles this as a special type
-  vector     Unsupported("vector(384)")? // 384 dimensions for all-MiniLM-L6-v2
-  chunkIndex Int?
-  pageNumber Int?
-  metadata   Json?
-  createdAt  DateTime @default(now())
-  
-  // Relations
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  
-  @@map("embeddings")
+// Unified chunk + embedding row for retrieval and lineage
+model Chunk {
+    id         String                      @id @default(uuid())
+    projectId  String                      @map("project_id")
+    fileId     String                      @map("file_id")
+    // content + vector
+    content    String                      @db.Text
+    vector     Unsupported("vector(384)")? // MiniLM all-MiniLM-L6-v2 default; make nullable for staged ingest
+    // positioning
+    chunkIndex Int?                        @map("chunk_index")
+    pageNumber Int?                        @map("page_number")
+    charStart  Int?                        @map("char_start")
+    charEnd    Int?                        @map("char_end")
+    // filters and provenance
+    metadata   Json?
+    createdAt  DateTime                    @default(now()) @map("created_at")
+    updatedAt  DateTime                    @updatedAt @map("updated_at")
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
+    @@index([fileId])
+    // If you plan ANN, also add a SQL migration to create IVFFlat/HNSW index on vector
+    @@map("chunks")
 }
 
-// Document processing metadata (for Python services)
-model Document {
-  id                String   @id @default(uuid())
-  userId            String?  @map("user_id")
-  filename          String   @db.VarChar(255)
-  originalFilename  String   @map("original_filename") @db.VarChar(255)
-  minioPath         String   @map("minio_path") @db.VarChar(500)
-  fileSize          Int?     @map("file_size")
-  mimeType          String?  @map("mime_type") @db.VarChar(100)
-  uploadStatus      String   @default("uploaded") @map("upload_status") @db.VarChar(50)
-  processingStatus  String   @default("pending") @map("processing_status") @db.VarChar(50)
-  metadata          Json?
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  chunks DocumentChunk[]
-  jobs   ProcessingJob[]
-  
-  @@map("documents")
-}
-
-// Document chunks with embeddings (for Python services)
-model DocumentChunk {
-  id         String   @id @default(uuid())
-  documentId String   @map("document_id")
-  chunkIndex Int      @map("chunk_index")
-  content    String   @db.Text
-  // Vector embedding field
-  embedding  Unsupported("vector(384)")? // 384 dimensions
-  pageNumber Int?     @map("page_number")
-  charStart  Int?     @map("char_start")
-  charEnd    Int?     @map("char_end")
-  metadata   Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-  
-  // Relations
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  @@map("document_chunks")
-}
-
-// Processing job tracking
+// Optional lightweight async job tracker for PoC
 model ProcessingJob {
-  id           String    @id @default(uuid())
-  jobId        String    @unique @map("job_id") @db.VarChar(100)
-  documentId   String    @map("document_id")
-  status       String    @default("pending") @db.VarChar(50)
-  errorMessage String?   @map("error_message") @db.Text
-  progress     Float     @default(0.0)
-  startedAt    DateTime? @map("started_at")
-  completedAt  DateTime? @map("completed_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  
-  // Relations
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  @@map("processing_jobs")
+    id           String    @id @default(uuid())
+    fileId       String    @map("file_id")
+    jobId        String    @unique @map("job_id") @db.VarChar(100)
+    status       String    @default("pending") @db.VarChar(50) // pending|running|completed|failed
+    errorMessage String?   @map("error_message") @db.Text
+    progress     Float     @default(0.0)
+    startedAt    DateTime? @map("started_at")
+    completedAt  DateTime? @map("completed_at")
+    createdAt    DateTime  @default(now()) @map("created_at")
+
+    file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+    @@index([fileId])
+    @@map("processing_jobs")
 }
