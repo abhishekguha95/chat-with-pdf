@@ -2,6 +2,7 @@
 // This service provides methods to initialize the MinIO connection and upload files to the configured bucket
 const Minio = require('minio');
 const { config } = require('../config');
+// const { logger } = require('../utils/logger');
 
 // Initialize MinIO client with configuration from the config file
 // - endPoint: The host name of the MinIO server
@@ -23,8 +24,15 @@ const minioClient = new Minio.Client({
  * @returns {Promise<void>}
  */
 async function initMinio() {
+    console.log('[MINIO] Checking if bucket exists:', config.minio.bucket);
     const exists = await minioClient.bucketExists(config.minio.bucket);
-    if (!exists) await minioClient.makeBucket(config.minio.bucket);
+    if (!exists) {
+        console.log('[MINIO] Bucket does not exist, creating:', config.minio.bucket);
+        await minioClient.makeBucket(config.minio.bucket);
+        console.log('[MINIO] Bucket created successfully');
+    } else {
+        console.log('[MINIO] Bucket already exists:', config.minio.bucket);
+    }
 }
 
 /**
@@ -43,9 +51,13 @@ async function uploadFile(file) {
     // Using 'uploads/' prefix for better organization
     const objectName = `uploads/${fileName}`;
 
+    console.log('[MINIO] Uploading file:', objectName);
+
     // Upload the file to MinIO
     // Parameters: bucket name, object name, file buffer, file size, and metadata (content type)
     await minioClient.putObject(config.minio.bucket, objectName, file.buffer, file.size, { 'Content-Type': file.mimetype });
+
+    console.log('[MINIO] File uploaded successfully:', objectName);
 
     // Return the object name for future reference (can be used to generate download URLs)
     return objectName;

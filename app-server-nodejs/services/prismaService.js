@@ -18,11 +18,14 @@ const prisma = new PrismaClient({
  */
 async function connectDatabase() {
     try {
+        console.log('[DATABASE] Connecting to database...');
         // Connect to the database using Prisma
         await prisma.$connect();
         logger.info(`Database connected successfully to ${config.database.url.split('@')[1]}`);
+        console.log(`[DATABASE] Connected successfully to ${config.database.url.split('@')[1]}`);
     } catch (error) {
         logger.error('Error connecting to database:', error);
+        console.error('[DATABASE] Error connecting to database:', error);
         throw error; // Re-throw to allow server.js to handle startup failure
     }
 }
@@ -33,11 +36,14 @@ async function connectDatabase() {
  */
 async function disconnectDatabase() {
     try {
+        console.log('[DATABASE] Disconnecting from database...');
         // Disconnect from the database
         await prisma.$disconnect();
         logger.info('Database disconnected successfully');
+        console.log('[DATABASE] Disconnected successfully');
     } catch (error) {
         logger.error('Error disconnecting from database:', error);
+        console.error('[DATABASE] Error disconnecting from database:', error);
         // Not throwing here as we're in a shutdown process
     }
 }
@@ -49,7 +55,10 @@ async function disconnectDatabase() {
  * @returns {Promise<object>} - The created project object
  */
 async function createProject(title, description) {
-    return prisma.project.create({ data: { title, description } });
+    console.log(`[DATABASE] Creating new project: "${title}"`);
+    const project = await prisma.project.create({ data: { title, description } });
+    console.log(`[DATABASE] Project created with ID: ${project.id}`);
+    return project;
 }
 
 /**
@@ -60,6 +69,7 @@ async function createProject(title, description) {
  * @returns {Promise<object>} - Object containing projects data and pagination metadata
  */
 async function getProjects({ page, limit }) {
+    console.log(`[DATABASE] Fetching projects (page: ${page}, limit: ${limit})`);
     // Calculate number of records to skip based on page and limit
     const skip = (page - 1) * limit;
 
@@ -73,6 +83,7 @@ async function getProjects({ page, limit }) {
 
     // Get the total count of projects for pagination calculations
     const total = await prisma.project.count();
+    console.log(`[DATABASE] Found ${projects.length} projects (total: ${total})`);
 
     // Return both the data and pagination metadata
     return {
@@ -92,10 +103,19 @@ async function getProjects({ page, limit }) {
  * @returns {Promise<object|null>} - The project object or null if not found
  */
 async function getProjectById(id) {
-    return prisma.project.findUnique({
+    console.log(`[DATABASE] Fetching project by ID: ${id}`);
+    const project = await prisma.project.findUnique({
         where: { id },
         include: { files: true }
     });
+
+    if (project) {
+        console.log(`[DATABASE] Found project: "${project.title}" with ${project.files.length} files`);
+    } else {
+        console.log(`[DATABASE] Project with ID ${id} not found`);
+    }
+
+    return project;
 }
 
 /**
@@ -107,9 +127,12 @@ async function getProjectById(id) {
  * @returns {Promise<object>} - The created file object
  */
 async function createFile(projectId, filename, url, fileSize) {
-    return prisma.file.create({
+    console.log(`[DATABASE] Creating file record: "${filename}" for project ${projectId}`);
+    const file = await prisma.file.create({
         data: { projectId, filename, url, fileSize }
     });
+    console.log(`[DATABASE] File record created with ID: ${file.id}`);
+    return file;
 }
 
 /**
@@ -119,9 +142,12 @@ async function createFile(projectId, filename, url, fileSize) {
  * @returns {Promise<object>} - The created processing job object
  */
 async function createProcessingJob(jobId, documentId) {
-    return prisma.processingJob.create({
+    console.log(`[DATABASE] Creating processing job: ${jobId} for document ${documentId}`);
+    const job = await prisma.processingJob.create({
         data: { jobId, documentId }
     });
+    console.log(`[DATABASE] Processing job created with ID: ${job.id}`);
+    return job;
 }
 
 // Export all database service functions

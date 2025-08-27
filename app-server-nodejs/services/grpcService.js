@@ -44,6 +44,7 @@ function initGRPC() {
         const serverAddress = config.grpc.chatServiceHost;
 
         logger.info(`Initializing gRPC client connection to ${serverAddress}`);
+        console.log(`[GRPC] Initializing gRPC client connection to ${serverAddress}`);
 
         chatClient = new chatProto.ChatService(
             serverAddress,
@@ -57,14 +58,18 @@ function initGRPC() {
         chatClient.waitForReady(Date.now() + 5000, (error) => {
             if (error) {
                 logger.warn(`gRPC server not ready: ${error.message}`);
+                console.warn(`[GRPC] Server not ready: ${error.message}`);
             } else {
                 logger.info('gRPC client successfully connected to server');
+                console.log('[GRPC] Client successfully connected to server');
             }
         });
 
         logger.info('gRPC client initialized');
+        console.log('[GRPC] Client initialized');
     } catch (error) {
         logger.error('Failed to initialize gRPC client', error);
+        console.error('[GRPC] Failed to initialize client:', error);
         // We don't throw the error here to allow the application to start
         // even if the gRPC server is not available yet
     }
@@ -77,6 +82,7 @@ function initGRPC() {
 function getClient() {
     if (!chatClient) {
         logger.warn('gRPC client accessed before initialization');
+        console.warn('[GRPC] Client accessed before initialization');
         // Auto-initialize if not already done
         initGRPC();
     }
@@ -94,6 +100,7 @@ function closeGRPC() {
         // But we can help by removing our reference
         chatClient = null;
         logger.info('gRPC client reference released');
+        console.log('[GRPC] Client reference released');
     }
 }
 
