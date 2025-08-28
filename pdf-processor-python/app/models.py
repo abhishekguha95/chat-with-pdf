@@ -5,8 +5,10 @@ from pgvector.sqlalchemy import Vector
 import uuid
 from .database import Base
 
+
 def uuid_str():
     return str(uuid.uuid4())
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -16,6 +18,7 @@ class Project(Base):
     status = Column(String, default="CREATING")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 class File(Base):
     __tablename__ = "files"
@@ -28,9 +31,10 @@ class File(Base):
     file_size = Column(Integer)
     upload_status = Column(String, default="uploaded")
     processing_status = Column(String, default="pending")
-    # metadata = Column(JSON)
+    file_metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 class Chunk(Base):
     __tablename__ = "chunks"
@@ -38,13 +42,17 @@ class Chunk(Base):
     project_id = Column(String, nullable=False)
     file_id = Column(String, nullable=False)
     content = Column(Text, nullable=False)
-    vector = Column(Vector(384))  # nullable by default in SQLAlchemy; set nullable=True if desired
+    vector = Column(
+        Vector(384)
+    )  # nullable by default in SQLAlchemy; set nullable=True if desired
     chunk_index = Column(Integer)
     page_number = Column(Integer)
     char_start = Column(Integer)
     char_end = Column(Integer)
-    # metadata = Column(JSON)
+    chunk_metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
@@ -57,3 +65,4 @@ class ProcessingJob(Base):
     started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

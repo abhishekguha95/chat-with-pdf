@@ -79,7 +79,7 @@ class StorageService:
         file_id: str,
         project_id: str,
         chunks: List[Any],  # List of LangChain Document objects
-        embeddings: List[List[float]]  # List of embedding vectors
+        embeddings: List[List[float]]  # List of vector embeddings (one per chunk)
     ):
         """
         Store text chunks and their embeddings in the database
@@ -97,15 +97,19 @@ class StorageService:
             # Python explanation: zip() pairs up items from two lists
             # enumerate() gives us the index (0, 1, 2...) and the item
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                # Create a new Embedding record
-                embedding_record = Embedding(
-                    projectId=project_id,
-                    fileId=file_id,
+                # Create a new Chunk record
+                embedding_record = Chunk(
+                    project_id=project_id,
+                    file_id=file_id,
                     content=chunk.page_content,  # The actual text
                     vector=embedding,  # The vector representation
-                    chunkIndex=i,  # Which chunk number this is
-                    pageNumber=chunk.metadata.get('page_number'),  # From PDF page
-                    metadata=chunk.metadata  # Additional info
+                    chunk_index=i,  # Which chunk number this is
+                    page_number=chunk.metadata.get('page_number'),  # From PDF page
+                    # Additional metadata fields if available
+                    char_start=chunk.metadata.get('char_start'),
+                    char_end=chunk.metadata.get('char_end'),
+                    # metadata field was commented out in the model
+                    updated_at=datetime.utcnow()  # Set updated_at to now
                 )
                 embedding_records.append(embedding_record)
             
@@ -131,19 +135,25 @@ class StorageService:
         """
         db = SessionLocal()
         try:
-            # Delete all embedding records where fileId matches
-            deleted = db.query(Embedding).filter(
-                Embedding.fileId == file_id
+            # Delete all chunk records where file_id matches
+            deleted = db.query(Chunk).filter(
+                Chunk.file_id == file_id
             ).delete()
             db.commit()
-            logger.info(f"Deleted {deleted} embeddings for file {file_id}")
+            logger.info(f"Deleted {deleted} chunks for file {file_id}")
             
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to delete embeddings: {e}")
+            logger.error(f"Failed to delete chunks: {e}")
             raise
         finally:
             db.close()
 
 # Create a global instance to use throughout the application
 storage_service = StorageService()
+#             raise
+#         finally:
+#             db.close()
+
+# # Create a global instance to use throughout the application
+# storage_service = StorageService()
