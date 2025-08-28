@@ -39,7 +39,7 @@ model File {
     uploadStatus     String   @default("pending") @map("upload_status") @db.VarChar(50) // pending|uploaded|failed
     processingStatus String   @default("pending") @map("processing_status") @db.VarChar(50) // pending|processing|completed|failed
     // provenance and extra
-    metadata         Json?
+    fileMetadata     Json?    @map("file_metadata")
     createdAt        DateTime @default(now()) @map("created_at")
     updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -53,21 +53,21 @@ model File {
 
 // Unified chunk + embedding row for retrieval and lineage
 model Chunk {
-    id         String                      @id @default(uuid())
-    projectId  String                      @map("project_id")
-    fileId     String                      @map("file_id")
+    id            String                      @id @default(uuid())
+    projectId     String                      @map("project_id")
+    fileId        String                      @map("file_id")
     // content + vector
-    content    String                      @db.Text
-    vector     Unsupported("vector(384)")? // MiniLM all-MiniLM-L6-v2 default; make nullable for staged ingest
+    content       String                      @db.Text
+    vector        Unsupported("vector(384)")? // MiniLM all-MiniLM-L6-v2 default; make nullable for staged ingest
     // positioning
-    chunkIndex Int?                        @map("chunk_index")
-    pageNumber Int?                        @map("page_number")
-    charStart  Int?                        @map("char_start")
-    charEnd    Int?                        @map("char_end")
+    chunkIndex    Int?                        @map("chunk_index")
+    pageNumber    Int?                        @map("page_number")
+    charStart     Int?                        @map("char_start")
+    charEnd       Int?                        @map("char_end")
     // filters and provenance
-    metadata   Json?
-    createdAt  DateTime                    @default(now()) @map("created_at")
-    updatedAt  DateTime                    @updatedAt @map("updated_at")
+    chunkMetadata Json?                       @map("chunk_metadata")
+    createdAt     DateTime                    @default(now()) @map("created_at")
+    updatedAt     DateTime                    @updatedAt @map("updated_at")
 
     project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
     file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
@@ -89,6 +89,7 @@ model ProcessingJob {
     startedAt    DateTime? @map("started_at")
     completedAt  DateTime? @map("completed_at")
     createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime  @updatedAt @map("updated_at")
 
     file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
 

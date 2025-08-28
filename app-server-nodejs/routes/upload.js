@@ -43,7 +43,9 @@ router.post('/', multer.single('file'), asyncHandler(async (req, res) => {
     // Send the processing job to RabbitMQ queue for asynchronous processing
     await publishProcessingJob({
         jobId,                   // Unique identifier for the job
-        documentId: fileRecord.id, // Reference to the stored file
+        projectId,
+        filename: fileRecord.filename,
+        fileId: fileRecord.id, // Reference to the stored file
         minioPath,               // Where the file is stored
         metadata: {
             originalName: file.originalname, // Original filename
