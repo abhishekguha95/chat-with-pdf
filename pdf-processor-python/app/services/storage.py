@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime
 from ..database import SessionLocal
-from ..models import Project, File, Embedding
+from ..models import Project, File, Chunk
 
 # Python explanation: logging helps us track what the program is doing
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class StorageService:
             db.execute(
                 update(File)  # Update the File table
                 .where(File.id == file_id)  # Where id matches
-                .values(processingStatus=status)  # Set new values
+                .values(processing_status=status)  # Set new values
             )
             db.commit()  # Save changes to database
             logger.info(f"Updated file {file_id} status to {status}")

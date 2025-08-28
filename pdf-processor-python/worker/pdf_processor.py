@@ -6,11 +6,11 @@ import sys
 import signal
 import time
 from typing import Dict, Any
-from ..app.config import config
-from ..app.database import test_connection, init_db
-from ..app.services.minio_client import minio_client
-from ..app.services.embeddings import embedding_service
-from ..app.services.storage import storage_service
+from app.config import config
+from app.database import test_connection, init_db
+from app.services.minio_client import minio_client
+from app.services.embeddings import embedding_service
+from app.services.storage import storage_service
 
 # Set up logging to see what's happening
 logging.basicConfig(

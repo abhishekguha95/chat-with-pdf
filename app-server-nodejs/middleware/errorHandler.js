@@ -7,13 +7,13 @@ const { createErrorResponse } = require('../utils/helpers');
  * This catches all errors thrown or passed to next(err) in the application
  * 
  * @param {Error} err - The error object
- * @param {Object} req - Express request object
+ * @param {Object} _req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} _next - Express next function (not used here as this is the final error handler)
  * @returns {Object} JSON response with error details
  */
 // eslint-disable-next-line no-unused-vars
-function errorHandler(err, req, res, _next) {
+function errorHandler(err, _req, res, _next) {
     // Log the full error for debugging purposes
     logger.error('Error:', err);
 

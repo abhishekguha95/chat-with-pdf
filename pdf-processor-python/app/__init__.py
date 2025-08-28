@@ -8,7 +8,7 @@ including configuration, database models, and services for embedding generation.
 # Import key components for easy access
 from .config import config
 from .database import engine, SessionLocal, get_db, init_db, test_connection
-from .models import Project, File, Embedding
+from .models import Project, File, Chunk
 
 # Import services
 from .services.minio_client import minio_client
@@ -35,7 +35,7 @@ __all__ = [
     # Models
     "Project",
     "File", 
-    "Embedding",
+    "Chunk",
     
     # Services
     "minio_client",

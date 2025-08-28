@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug PDF Processor",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "main",
+            "cwd": "/usr/src/chat-with-pdf/pdf-processor-python",
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "/usr/src/chat-with-pdf"
+            }
+        },
+        {
+            "name": "Debug Worker Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "worker.pdf_processor",
+            "cwd": "/usr/src/chat-with-pdf/pdf-processor-python",
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "/usr/src/chat-with-pdf"
+            }
+        }
+    ]
+}
