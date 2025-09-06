@@ -50,7 +50,11 @@ function initGRPC() {
             serverAddress,
             // For development, using insecure credentials is acceptable
             // For production, implement proper TLS certificates
-            grpc.credentials.createInsecure()
+            grpc.credentials.createInsecure(),
+            {
+                'grpc.keepalive_time_ms': 10000,
+                'grpc.keepalive_timeout_ms': 5000,
+            }
         );
 
         // Optional: Test the connection by making a simple call
@@ -113,15 +117,58 @@ function closeGRPC() {
  * @param {Array} params.chatHistory - Previous messages in the conversation for context
  * @returns {Object} - A gRPC stream that emits responses from the Python backend
  */
+// function streamChat({ message, projectId, chatHistory }) {
+//     // Use gRPC native streaming API to get responses as a stream
+//     // The returned object is a readable stream that emits data events
+//     return chatClient.StreamChat({
+//         message,
+//         project_id: projectId,
+//         user_id: '', // Currently not used, but reserved for future user identification
+//         chat_history: chatHistory || [], // Provide conversation context or default to empty array
+//     });
+// }
 function streamChat({ message, projectId, chatHistory }) {
-    // Use gRPC native streaming API to get responses as a stream
-    // The returned object is a readable stream that emits data events
-    return chatClient.StreamChat({
-        message,
-        project_id: projectId,
-        user_id: '', // Currently not used, but reserved for future user identification
-        chat_history: chatHistory || [], // Provide conversation context or default to empty array
-    });
+    // Ensure the client is initialized
+    const client = getClient();
+    if (!client) {
+        // Create a dummy stream that immediately emits an error
+        const { PassThrough } = require('stream');
+        const errorStream = new PassThrough({ objectMode: true });
+        process.nextTick(() => {
+            errorStream.emit('error', new Error('gRPC client not initialized'));
+        });
+        return errorStream;
+    }
+
+    try {
+        const stream = client.StreamChat({
+            message,
+            project_id: projectId,
+            user_id: '',
+            chat_history: chatHistory || [],
+        });
+
+        // Optional: Attach a generic error handler for logging
+        stream.on("data", (resp) => {
+            console.log("Got:", resp);
+        });
+        stream.on("end", () => {
+            console.log("Stream ended");
+        });
+        stream.on("error", (err) => {
+            console.error("Stream error:", err)
+        });
+
+        return stream;
+    } catch (err) {
+        // Create a dummy stream that immediately emits the caught error
+        const { PassThrough } = require('stream');
+        const errorStream = new PassThrough({ objectMode: true });
+        process.nextTick(() => {
+            errorStream.emit('error', err);
+        });
+        return errorStream;
+    }
 }
 
 module.exports = {

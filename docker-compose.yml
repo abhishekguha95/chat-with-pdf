@@ -226,45 +226,47 @@ services:
     # Python service for chat processing (Workflow 2: Query → Retrieve → Generate)
     # Handles user chat messages, vector similarity search, and response generation
     # Provides gRPC interface for real-time communication with backend API
-    # chat-service-python:
-    #     build:
-    #         context: ./chat-service-python # Source code directory for chat service
-    #         dockerfile: Dockerfile # Dockerfile for Python chat environment
-    #     volumes:
-    #         # Mount project root to enable git access and live development
-    #         # Allows access to shared configuration and version control
-    #         - .:/usr/src/chat-with-pdf
-    #     working_dir: /usr/src/chat-with-pdf/chat-service-python # Set working directory for Python modules
-    #     env_file:
-    #         # Load environment variables for API keys and external service configuration
-    #         # Should include: OPENAI_API_KEY, HUGGINGFACE_API_KEY, etc.
-    #         - .env
-    #     environment:
-    #         # Database connection for accessing stored document embeddings
-    #         # Uses same database as PDF processor for consistency
-    #         DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/chatpdf
+    chat-service-python:
+        build:
+            context: ./chat-service-python # Source code directory for chat service
+            dockerfile: Dockerfile # Dockerfile for Python chat environment
+        volumes:
+            # Mount project root to enable git access and live development
+            # Allows access to shared configuration and version control
+            - .:/usr/src/chat-with-pdf
+            - pip-cache:/root/.cache/pip 
+            - hf-cache:/cache/hf
+        working_dir: /usr/src/chat-with-pdf/chat-service-python # Set working directory for Python modules
+        env_file:
+            # Load environment variables for API keys and external service configuration
+            # Should include: OPENAI_API_KEY, HUGGINGFACE_API_KEY, etc.
+            - .env
+        environment:
+            # Database connection for accessing stored document embeddings
+            # Uses same database as PDF processor for consistency
+            DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/chatpdf
 
-    #         # Ollama connection for local LLM inference (currently commented out)
-    #         # Provides local language model for generating chat responses
-    #         OLLAMA_HOST: http://ollama:11434
-    #     depends_on:
-    #         # Service dependencies for chat functionality
-    #         - postgres # Database needed for vector similarity search
-    #         # - ollama # Local LLM service (if using local models instead of OpenAI)
-    #     ports:
-    #         # Expose gRPC port for communication with backend API
-    #         # Allows real-time bidirectional communication for chat operations
-    #         - "50051:50051" # Standard gRPC port for chat service
-    #     # Start the gRPC server to handle chat requests from backend
-    #     # command: python -m server.grpc_server
-    #     command: tail -f /dev/null
-    #     # restart: unless-stopped # Ensure chat service is always available
-    #     # Health check for gRPC service availability
-    #     healthcheck:
-    #         test: ["CMD", "python", "-c", "import grpc; import sys; sys.exit(0)"]
-    #         interval: 30s
-    #         timeout: 10s
-    #         retries: 3
+            # Ollama connection for local LLM inference (currently commented out)
+            # Provides local language model for generating chat responses
+            OLLAMA_HOST: http://ollama:11434
+        depends_on:
+            # Service dependencies for chat functionality
+            - postgres # Database needed for vector similarity search
+            # - ollama # Local LLM service (if using local models instead of OpenAI)
+        ports:
+            # Expose gRPC port for communication with backend API
+            # Allows real-time bidirectional communication for chat operations
+            - "50051:50051" # Standard gRPC port for chat service
+        # Start the gRPC server to handle chat requests from backend
+        # command: python -m server.grpc_server
+        command: sh -c "apt-get update && apt-get install -y git && tail -f /dev/null"
+        # restart: unless-stopped # Ensure chat service is always available
+        # Health check for gRPC service availability
+        healthcheck:
+            test: ["CMD", "python", "-c", "import grpc; import sys; sys.exit(0)"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
 
     # MinIO service for local S3-compatible object storage
     # Provides Amazon S3-compatible API for storing and retrieving PDF files
