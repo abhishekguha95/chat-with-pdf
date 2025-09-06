@@ -1,32 +1,33 @@
 # 🧠 Chat with PDFs — Scalable AI Backend
 
-A fullstack backend for conversational querying of PDF documents using local LLMs and vector search. Upload PDFs, extract content, generate embeddings, and chat with your documents—all powered by microservices, event-driven architecture, and containerization.
+A RAG based backend for conversational querying of PDF documents using local LLMs and vector search. Upload PDFs, extract content, generate embeddings, and chat with your documents—all powered by containerised microservices.
 
 ---
 
 ## 🚀 Features
 
--   **PDF Upload & Storage:** Secure REST API for PDF uploads, stored in S3-compatible object storage (MinIO/AWS S3).
--   **Metadata & Vector DB:** Project metadata and vector embeddings managed in PostgreSQL with Prisma ORM and pgvector.
--   **Async Processing:** BullMQ (Redis) queues for non-blocking, scalable PDF processing.
--   **Embeddings Microservice:** Python FastAPI service generates high-quality vector embeddings via sentence-transformers.
+-   **PDF Upload & Storage:** Node.js + Expres.js based REST API for PDF uploads, stored in S3-compatible object storage (MinIO/AWS S3).
+-   **Metadata & Vector DB:** Project metadata and vector embeddings stored in PostgreSQL with Prisma ORM and pgvector.
+-   **Async Processing:** RabbitMQ for asynchronous, scalable PDF processing.
+-   **Embeddings Microservice:** Python based service for generating high-quality vector embeddings via sentence-transformers.
+-   **Chatting Microservice:** Python-based service for generating queries' embedding and retrieval of similar stored vector embeddings.
 -   **Conversational LLM:** Local Ollama integration for privacy-preserving, context-aware chat responses.
--   **Streaming Responses:** Real-time LLM output streaming for responsive chat UX.
+-   **Streaming Responses:** Real-time LLM output streaming for responsive chat using gRPC.
 -   **Dockerized Dev:** One-command setup with Docker Compose for all services.
--   **Admin Tools:** PgAdmin UI for easy DB inspection.
+-   **Admin Tools:** PgAdmin UI for easy PostgreSQL management. MinIO UI for inspecting uploaded files. RabbitMQ UI for inspecting queue activities.
 
 ---
 
 ## 🛠️ Tech Stack
 
--   **Node.js, Express, Prisma** — API server
--   **BullMQ (Redis)** — Job queue
--   **PostgreSQL + pgvector** — Database & vector search
--   **Python + FastAPI + Sentence-Transformers** — Embedding service
--   **Ollama** — Local LLM runtime
+-   **Node.js, Express.js** — API Gateway
+-   **RabbitMQ** — Message Broker
+-   **PostgreSQL + Prisma + pgvector** — Database & vector search
+-   **Python + Sentence-Transformers** — Embedding service
+-   **Python + gRPC** — Stream Chat responses
 -   **MinIO** — S3-compatible object storage
 -   **Docker, Docker Compose** — Containerization
--   **PgAdmin** — DB admin UI
+-   **Ollama** — Local LLM runtime
 
 ---
 
@@ -44,10 +45,9 @@ See [`app-server-nodejs/prisma/schema.prisma`](app-server-nodejs/prisma/schema.p
 
 1. **User uploads PDF** via REST API.
 2. **API stores metadata** in PostgreSQL and uploads PDF to MinIO.
-3. **Job queued** in BullMQ for background processing.
-4. **Worker extracts text** from PDF, sends to embedding microservice.
-5. **Embeddings stored** in PostgreSQL (pgvector).
-6. **User asks question:** API generates embedding for query, finds relevant chunks via vector search, sends context to Ollama, streams LLM response.
+3. **Message queued** in RabbitMQ for asynchronous processing.
+4. **Python consumer** picks message from queue, downloads file from storage, extracts text, makes chunks, generates and stores embeddings.
+6. TODO
 
 ---
 
@@ -94,4 +94,5 @@ Response: Project metadata & status
 POST /projects/:id/chat
 Body: { question: "..." }
 Response: { response: "..." } (streamed)
+
 ```
