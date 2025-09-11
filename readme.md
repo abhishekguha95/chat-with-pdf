@@ -2,6 +2,9 @@
 
 A RAG based backend for conversational querying of PDF documents using local LLMs and vector search. Upload PDFs, extract content, generate embeddings, and chat with your documents—all powered by containerised microservices.
 
+Medium Articles:
+- https://medium.com/@qohor2525/chat-with-your-pdfs-an-exploration-of-rag-270fb1ea8c8b
+- ...coming soon
 ---
 
 ## 🚀 Features
@@ -96,3 +99,4 @@ Body: { question: "..." }
 Response: { response: "..." } (streamed)
 
 ```
+
