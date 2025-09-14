@@ -66,19 +66,18 @@ const parseMultipartUpload = (req) => {
         });
 
         // Handle file uploads
-        busboy.on('file', (fieldname, file, fileInfo) => {
-            // const { filename, mimeType } = fileInfo;
+        busboy.on('file', (fieldname, fileStream, fileInfo) => {
             
             // Only process 'file' field
             if (fieldname !== 'file') {
-                file.resume();
+                fileStream.resume();
                 return;
             }
 
             hasFiles = true;
             
             // Create promise for this file upload
-            const uploadPromise = processFileUpload(file, fileInfo, projectId);
+            const uploadPromise = processFileUpload(fileStream, fileInfo, projectId);
             pendingUploads.push(uploadPromise);
         });
 
@@ -128,7 +127,7 @@ const parseMultipartUpload = (req) => {
 // Individual file processing function - handles the complete lifecycle of one file upload
 // This function encapsulates all the async operations needed for a single file:
 // validation → upload → database storage → job creation → message queue publishing
-const processFileUpload = async (file, fileInfo, projectId) => {
+const processFileUpload = async (fileStream, fileInfo, projectId) => {
     const { filename, mimeType } = fileInfo;
 
     // === VALIDATION PHASE ===
@@ -136,7 +135,7 @@ const processFileUpload = async (file, fileInfo, projectId) => {
     // File type validation - business rule enforcement
     // Only PDF files are allowed per business requirements
     if (mimeType !== 'application/pdf') {
-        file.resume();                    // CRITICAL: Must discard stream to prevent memory leak
+        fileStream.resume();  // CRITICAL: Must discard stream to prevent memory leak
         const error = new Error('Only PDF files are allowed');
         error.code = 'INVALID_FILE_TYPE'; // Structured error code for proper HTTP status mapping
         throw error;
@@ -146,7 +145,7 @@ const processFileUpload = async (file, fileInfo, projectId) => {
     // Validates that the provided projectId exists before allowing file upload
     const project = await getProjectById(projectId);
     if (!project) {
-        file.resume();                    // CRITICAL: Must discard stream to prevent memory leak
+        fileStream.resume();   // CRITICAL: Must discard stream to prevent memory leak
         const error = new Error('Project not found');
         error.code = 'PROJECT_NOT_FOUND'; // Structured error code for 404 response
         throw error;
@@ -163,7 +162,7 @@ const processFileUpload = async (file, fileInfo, projectId) => {
         // Upload file stream directly to MinIO object storage
         // This streams the file without loading it entirely into memory - crucial for large files
         // Returns metadata including the actual file size after upload completion
-        const { size } = await uploadStream(minioPath, file, mimeType);
+        const { size } = await uploadStream(minioPath, fileStream, mimeType);
         
         // Create database record for the uploaded file
         // This establishes the file's presence in the system and provides a reference ID
