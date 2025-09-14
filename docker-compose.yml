@@ -202,9 +202,6 @@ services:
             MINIO_ACCESS_KEY: minioadmin # Access credentials for MinIO operations
             MINIO_SECRET_KEY: minioadmin # Secret key for MinIO authentication
 
-            PIP_CACHE_DIR: /root/.cache/pip
-            HF_HOME: /cache/hf
-
         depends_on:
             # Service dependencies - ensures required infrastructure is available
             - postgres # Database needed for storing processed document metadata and embeddings
