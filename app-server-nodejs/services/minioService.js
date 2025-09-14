@@ -63,4 +63,26 @@ async function uploadFile(file) {
     return objectName;
 }
 
-module.exports = { initMinio, uploadFile };
+async function uploadStream(minioPath, stream, mimetype) {
+    try {
+        // MinIO needs the size; if unknown, you can buffer or use a temp file, or use a workaround for unknown size
+        // Here, we buffer to count size (for production, use a temp file or multipart upload for large files)
+        const chunks = [];
+        let size = 0;
+        for await (const chunk of stream) {
+            chunks.push(chunk);
+            size += chunk.length;
+        }
+        const buffer = Buffer.concat(chunks);
+
+        console.log('[MINIO] Uploading file:', minioPath);
+        await minioClient.putObject(config.minio.bucket, minioPath, buffer, size, { 'Content-Type': mimetype });
+        console.log('[MINIO] File uploaded successfully:', minioPath);
+        return { size };
+    } catch (err) {
+        console.error('Error uploading stream to MinIO:', err);
+        throw err;
+    }
+}
+
+module.exports = { initMinio, uploadFile, uploadStream };
