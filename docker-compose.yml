@@ -7,7 +7,7 @@ services:
     # Acts as the primary data store for user sessions, chat history, and PDF metadata
     # Uses pgvector extension for vector embeddings storage and similarity search
     postgres:
-        image: pgvector/pgvector:pg15 # PostgreSQL 15 with pgvector extension for vector similarity search
+        image: pgvector/pgvector:pg15-trixie # PostgreSQL 15 with pgvector extension for vector similarity search
         # restart: always # Automatically restart container if it stops unexpectedly
         environment:
             # Database credentials and configuration
@@ -269,7 +269,7 @@ services:
     # Provides Amazon S3-compatible API for storing and retrieving PDF files
     # Used as local development alternative to AWS S3 or other cloud storage
     minio:
-        image: minio/minio:latest # Latest MinIO server image with S3 compatibility
+        image: minio/minio # Latest MinIO server image with S3 compatibility
         restart: unless-stopped # Ensure storage service availability
         ports:
             # Expose MinIO API on port 9000 for S3-compatible operations
