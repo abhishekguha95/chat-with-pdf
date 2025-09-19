@@ -1,27 +1,51 @@
+# ----------------------------
+# pdf-processor-python Dockerfile
+# CPU-only, Hugging Face caching, pip caching
+# ----------------------------
+
 FROM python:3.10-slim
 
+# ----------------------------
+# Set working directory
+# ----------------------------
 WORKDIR /usr/src/chat-with-pdf/pdf-processor-python
 
-# Install minimal system dependencies (no Rust needed)
+# ----------------------------
+# Install minimal system dependencies
+# ----------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip/setuptools/wheel so pip prefers wheels over source builds
+# ----------------------------
+# Upgrade pip/setuptools/wheel
+# ----------------------------
 RUN pip install --upgrade pip setuptools wheel
 
-# Copy requirements and install dependencies (force wheels only)
+# ----------------------------
+# Install CPU-only PyTorch first
+# ----------------------------
+RUN pip install torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
+
+# ----------------------------
+# Copy requirements and install rest
+# ----------------------------
 COPY requirements.txt .
-RUN pip install --only-binary=:all: -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Create cache directory for Hugging Face models
-RUN mkdir -p /cache/hf
-
-# Set environment variables
-ENV PYTHONPATH=/usr/src/chat-with-pdf/pdf-processor-python  
+# ----------------------------
+# Environment variables
+# ----------------------------
+ENV PYTHONPATH=/usr/src/chat-with-pdf/pdf-processor-python
 ENV HF_HOME=/cache/hf
+ENV PIP_CACHE_DIR=/root/.cache/pip
 
+# ----------------------------
+# Expose nothing (worker-only)
+# ----------------------------
+# CMD to start your worker
 CMD ["python", "-m", "worker.pdf_processor"]

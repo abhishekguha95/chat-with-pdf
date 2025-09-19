@@ -3,12 +3,11 @@ grpcio-tools==1.60.0
 langchain==0.2.16
 langchain-community==0.2.9
 langchain-postgres==0.0.9
-sentence-transformers==2.2.2
+sentence-transformers==3.0.1
+transformers==4.44.2
 psycopg[binary]==3.1.18
 sqlalchemy==2.0.25
-requests==2.31.0
+requests==2.32.3
 numpy==1.26.4
-torch==2.1.2
-transformers==4.36.2
 python-dotenv==1.0.0
-huggingface_hub<0.20.0
+huggingface_hub>=0.23.0
