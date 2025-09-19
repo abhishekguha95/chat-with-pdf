@@ -1,26 +1,27 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 WORKDIR /usr/src/chat-with-pdf/pdf-processor-python
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
+# Install minimal system dependencies (no Rust needed)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Upgrade pip/setuptools/wheel so pip prefers wheels over source builds
+RUN pip install --upgrade pip setuptools wheel
 
-# Remove this line - not needed due to volume mount
-# COPY . .
+# Copy requirements and install dependencies (force wheels only)
+COPY requirements.txt .
+RUN pip install --only-binary=:all: -r requirements.txt
 
 # Create cache directory for Hugging Face models
 RUN mkdir -p /cache/hf
 
 # Set environment variables
-ENV PYTHONPATH=/usr/src/chat-with-pdf/pdf-processor-python
+ENV PYTHONPATH=/usr/src/chat-with-pdf/pdf-processor-python  
 ENV HF_HOME=/cache/hf
 
-# Default command
 CMD ["python", "-m", "worker.pdf_processor"]

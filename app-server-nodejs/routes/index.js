@@ -10,6 +10,7 @@ const router = express.Router();
 const projectRoutes = require('./project');
 const uploadRoutes = require('./upload');
 const chatRoutes = require('./chat');
+const embeddingRoutes = require('./embedding');
 
 // Mount project-related routes under '/projects' path
 // These routes handle project creation, listing, deletion, etc.
@@ -18,6 +19,8 @@ router.use('/projects', projectRoutes);
 // Mount file upload routes under '/upload' path
 // These routes handle document uploading, processing, and storage
 router.use('/upload', uploadRoutes);
+
+router.use('/embedding', embeddingRoutes);
 
 // Mount chat interaction routes under '/chat' path
 // These routes handle user queries, document-based Q&A, and conversation history

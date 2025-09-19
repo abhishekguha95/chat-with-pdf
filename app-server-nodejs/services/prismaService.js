@@ -150,6 +150,27 @@ async function createProcessingJob(jobId, fileId) {
     return job;
 }
 
+/**
+ * Retrieves a specific file by its ID
+ * @param {string|number} id - The unique identifier of the file
+ * @returns {Promise<object|null>} - The file object or null if not found
+ */
+async function getFileById(id) {
+    console.log(`[DATABASE] Fetching file by ID: ${id}`);
+    const file = await prisma.file.findUnique({
+        where: { id }
+    });
+
+    if (file) {
+        console.log(`[DATABASE] Found file: "${file.filename}" (ID: ${file.id})`);
+    } else {
+        console.log(`[DATABASE] File with ID ${id} not found`);
+    }
+
+    return file;
+}
+
+
 // Export all database service functions
 module.exports = {
     prisma,
@@ -159,5 +180,6 @@ module.exports = {
     getProjects,
     getProjectById,
     createFile,
-    createProcessingJob
+    createProcessingJob,
+    getFileById
 };

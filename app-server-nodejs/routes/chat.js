@@ -6,7 +6,7 @@ const { asyncHandler } = require('../utils/helpers');
 // Import the gRPC service function for streaming chat data
 const { streamChat } = require('../services/grpcService');
 // Import validation middleware to ensure chat request data is properly formatted
-const { validateChat } = require('../middleware/validation');
+// const { validateChat } = require('../middleware/validation');
 
 /**
  * POST /api/chat/stream
@@ -14,9 +14,10 @@ const { validateChat } = require('../middleware/validation');
  * Uses Server-Sent Events (SSE) to provide real-time streaming to the client
  * Validates incoming requests with validateChat middleware
  */
-router.post('/stream', validateChat, asyncHandler(async (req, res) => {
+// router.get('/stream', validateChat, asyncHandler(async (req, res) => {
+router.get('/stream', asyncHandler(async (req, res) => {
     // Extract required data from request body
-    const { message, projectId, chatHistory } = req.body;
+    const { message, projectId, chatHistory } = req.query;
 
     // Configure headers for SSE (Server-Sent Events) stream
     res.setHeader('Content-Type', 'text/event-stream'); // Defines the content type for SSE
@@ -30,6 +31,7 @@ router.post('/stream', validateChat, asyncHandler(async (req, res) => {
 
     // Handle incoming data chunks from the gRPC stream
     stream.on('data', (chunk) => {
+          if (res.writableEnded) return; // Prevent writing after end
         // If the chunk contains a token (part of AI response), send it immediately to client
         if (chunk.token)
             res.write(`data: ${JSON.stringify({ token: chunk.token })}\n\n`);
@@ -39,32 +41,46 @@ router.post('/stream', validateChat, asyncHandler(async (req, res) => {
         if (chunk.complete) {
             res.write(`data: ${JSON.stringify({
                 complete: true,
-                sources: chunk.sources // References or citations for the information provided
+                sources: chunk.sources
             })}\n\n`);
-            res.end(); // Close the SSE stream
+            // if (!res.writableEnded) res.end();
         }
 
         // If the chunk contains an error, forward it to the client and end the stream
         if (chunk.error) {
-            res.write(`data: ${JSON.stringify({ error: chunk.error })}\n\n`);
-            res.end();
+            if (!res.writableEnded) {
+                res.write(`data: ${JSON.stringify({ error: chunk.error })}\n\n`);
+                // res.end();
+            }
         }
     });
 
     // Handle errors in the gRPC stream
+   
+    // stream.on('error', (_err) => {
+    //     // Send a generic error message to avoid exposing sensitive details
+    //     res.write(`data: ${JSON.stringify({ error: 'Chat service error' })}\n\n`);
+    //     res.end(); // Close the SSE stream
+    // });
     // eslint-disable-next-line no-unused-vars
     stream.on('error', (_err) => {
-        // Send a generic error message to avoid exposing sensitive details
-        res.write(`data: ${JSON.stringify({ error: 'Chat service error' })}\n\n`);
-        res.end(); // Close the SSE stream
+        if (!res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ error: 'Chat service error' })}\n\n`);
+            res.end();
+        }
     });
 
     // Handle normal stream completion (if not already ended by complete/error handlers)
-    stream.on('end', () => res.end());
+        stream.on('end', () => {
+        if (!res.writableEnded) res.end();
+    });
 
     // If client disconnects, cancel the gRPC stream to free up resources
     // The conditional check ensures stream.cancel exists before calling it
-    req.on('close', () => stream.cancel && stream.cancel());
+    req.on('close', () => {
+        stream.cancel();
+        if (!res.writableEnded) res.end();
+    });
 }));
 
 module.exports = router;

@@ -56,7 +56,7 @@ const chatSchema = Joi.object({
  */
 function validateChat(req, res, next) {
     // Validate request body against the chat schema
-    const { error } = chatSchema.validate(req.body);
+    const { error } = chatSchema.validate(req.query);
 
     // If validation error occurs, return 400 Bad Request with the error message
     if (error) return res.status(400).json(createErrorResponse(error.details[0].message));
